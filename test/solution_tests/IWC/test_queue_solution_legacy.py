@@ -482,3 +482,24 @@ def test_bank_statements_wins_tie_when_boosted() -> None:
             call_dequeue().expect("id_verification", 6),
         ]
     )
+
+
+def test_bank_statements_boosted_overrides_rule_of_3() -> None:
+    # GIVEN: User 2 has Rule of 3, but bank_statements user 1 is boosted (>= 5 min age)
+    # WHEN: Dequeued
+    # THEN: Boosted bank_statements comes before Rule of 3 tasks
+    run_queue([
+        call_enqueue("bank_statements", 1, iso_ts(delta_minutes=0)).expect(1),
+        call_enqueue("companies_house", 2, iso_ts(delta_minutes=1)).expect(2),
+        call_enqueue("id_verification", 2, iso_ts(delta_minutes=6)).expect(3),
+        call_enqueue("bank_statements", 2, iso_ts(delta_minutes=7)).expect(4),
+        # User 2 has 3 tasks → Rule of 3 (HIGH priority)
+        # bank_statements user 1: age = 7-0 = 7 min (boosted, but still NORMAL priority)
+        # With current code: User 2 comes first (HIGH > NORMAL)
+        # Expected: bank_statements user 1 comes first (boosted overrides Rule of 3)
+        call_dequeue().expect("bank_statements", 1),  # Should override Rule of 3
+        call_dequeue().expect("companies_house", 2),
+        call_dequeue().expect("id_verification", 2),
+        call_dequeue().expect("bank_statements", 2),
+    ])
+
