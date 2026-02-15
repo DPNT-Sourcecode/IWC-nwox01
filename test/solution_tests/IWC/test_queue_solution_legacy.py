@@ -36,6 +36,7 @@ def test_timestamp_ordering() -> None:
         ]
     )
 
+
 def test_dependency_resolution() -> None:
     # GIVEN: A task with dependencies is enqueued
     # WHEN: credit_check task is enqueued
@@ -64,6 +65,7 @@ def test_size_method() -> None:
             call_size().expect(0),
         ]
     )
+
 
 def test_rule_of_3_overrides_timestamp() -> None:
     # GIVEN: User 2 enqueues first with an early timestamp
@@ -99,7 +101,9 @@ def test_multiple_users_with_rule_of_3() -> None:
             # User 1 now has Rule of 3 active
             call_enqueue("companies_house", 2, iso_ts(delta_minutes=3)).expect(4),
             call_enqueue("id_verification", 2, iso_ts(delta_minutes=4)).expect(5),
-            call_enqueue("credit_check", 2, iso_ts(delta_minutes=5)).expect(7),  # +dependency
+            call_enqueue("credit_check", 2, iso_ts(delta_minutes=5)).expect(
+                7
+            ),  # +dependency
             # User 1's tasks come first (hit Rule of 3 first)
             call_dequeue().expect("bank_statements", 1),
             call_dequeue().expect("bank_statements", 1),
@@ -111,4 +115,24 @@ def test_multiple_users_with_rule_of_3() -> None:
             call_dequeue().expect("credit_check", 2),
         ]
     )
+
+
+def test_dependency_counts_toward_rule_of_3() -> None:
+    # GIVEN: A user enqueues tasks including ones with dependencies
+    # WHEN: Dependencies cause the user to reach 3 tasks
+    # THEN: Rule of 3 is triggered
+    run_queue(
+        [
+            call_enqueue("bank_statements", 1, iso_ts(delta_minutes=0)).expect(1),
+            # This adds 2 tasks (dependency + task), triggering Rule of 3
+            call_enqueue("credit_check", 1, iso_ts(delta_minutes=1)).expect(3),
+            call_enqueue("bank_statements", 2, iso_ts(delta_minutes=2)).expect(4),
+            # User 1's tasks should come first due to Rule of 3
+            call_dequeue().expect("bank_statements", 1),
+            call_dequeue().expect("companies_house", 1),
+            call_dequeue().expect("credit_check", 1),
+            call_dequeue().expect("bank_statements", 2),
+        ]
+    )
+
 
