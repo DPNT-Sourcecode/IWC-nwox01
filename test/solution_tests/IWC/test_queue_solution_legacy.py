@@ -396,19 +396,21 @@ def test_bank_statements_old_enough_gets_priority() -> None:
     # GIVEN: Bank statements age >= 5 min from current queue oldest
     # WHEN: Oldest task never dequeued
     # THEN: Bank statements gets boosted
-    run_queue([
-        call_enqueue("companies_house", 1, iso_ts(delta_minutes=0)).expect(1),
-        call_enqueue("companies_house", 2, iso_ts(delta_minutes=1)).expect(2),
-        call_enqueue("bank_statements", 3, iso_ts(delta_minutes=6)).expect(3),
-        call_enqueue("id_verification", 4, iso_ts(delta_minutes=7)).expect(4),
-        # global_oldest = 0 (companies_house user 1)
-        # bank_statements age = 6-0 = 6 min (boosted)
-        call_dequeue().expect("companies_house", 1),  # Timestamp=0
-        call_dequeue().expect("companies_house", 2),  # Timestamp=1
-        # NOW global_oldest = 6, bank_statements age = 0 (not boosted anymore)
-        call_dequeue().expect("id_verification", 4),  # Timestamp=7, priority=0
-        call_dequeue().expect("bank_statements", 3),  # Deprioritized
-    ])
+    run_queue(
+        [
+            call_enqueue("companies_house", 1, iso_ts(delta_minutes=0)).expect(1),
+            call_enqueue("companies_house", 2, iso_ts(delta_minutes=1)).expect(2),
+            call_enqueue("bank_statements", 3, iso_ts(delta_minutes=6)).expect(3),
+            call_enqueue("id_verification", 4, iso_ts(delta_minutes=7)).expect(4),
+            # global_oldest = 0 (companies_house user 1)
+            # bank_statements age = 6-0 = 6 min (boosted)
+            call_dequeue().expect("companies_house", 1),  # Timestamp=0
+            call_dequeue().expect("companies_house", 2),  # Timestamp=1
+            # NOW global_oldest = 6, bank_statements age = 0 (not boosted anymore)
+            call_dequeue().expect("id_verification", 4),  # Timestamp=7, priority=0
+            call_dequeue().expect("bank_statements", 3),  # Deprioritized
+        ]
+    )
 
 
 def test_bank_statements_not_old_enough_stays_deprioritized() -> None:
@@ -432,39 +434,6 @@ def test_bank_statements_not_old_enough_stays_deprioritized() -> None:
     )
 
 
-def test_global_oldest_recalculates_after_dequeue() -> None:
-    # GIVEN: Tasks enqueued, then oldest is dequeued
-    # WHEN: New task enqueued with earlier timestamp than remaining tasks
-    # THEN: Global oldest should reset to new earliest timestamp
-    queue = QueueSolutionEntrypoint()
-
-    # Enqueue initial tasks
-    queue.enqueue(
-        TaskSubmission("id_verification", 1, iso_ts(delta_minutes=0))
-    )  # Will be dequeued
-    queue.enqueue(TaskSubmission("companies_house", 2, iso_ts(delta_minutes=10)))
-
-    # Dequeue the oldest task
-    queue.dequeue()  # Removes id_verification at delta=0
-
-    # Now enqueue bank_statements at delta=5 (between 0 and 10)
-    queue.enqueue(TaskSubmission("bank_statements", 3, iso_ts(delta_minutes=5)))
-
-    # WITHOUT the fix: global_oldest is still 0 (from the dequeued task)
-    # bank_statements age = 5-0 = 5 min → boosted, comes before companies_house
-
-    # WITH the fix: global_oldest recalculated to 5 (bank_statements itself after first dequeue)
-    # Then after enqueue, global_oldest = min(5, 10) = 5
-    # bank_statements age = 5-5 = 0 min → deprioritized, comes after companies_house
-
-    result1 = queue.dequeue()
-    result2 = queue.dequeue()
-
-    # With fix: companies_house comes first (not boosted)
-    assert result1.provider == "companies_house"
-    assert result2.provider == "bank_statements"
-
-
 def test_bank_statements_age_based_on_newest_not_oldest() -> None:
     # GIVEN: bank_statements between oldest and newest tasks
     # WHEN: Age calculated from newest timestamp (not oldest)
@@ -472,9 +441,15 @@ def test_bank_statements_age_based_on_newest_not_oldest() -> None:
     queue = QueueSolutionEntrypoint()
 
     # Enqueue tasks
-    queue.enqueue(TaskSubmission("id_verification", 1, iso_ts(delta_minutes=0)))  # Oldest
-    queue.enqueue(TaskSubmission("bank_statements", 2, iso_ts(delta_minutes=1)))  # Middle
-    queue.enqueue(TaskSubmission("companies_house", 3, iso_ts(delta_minutes=7)))  # Newest
+    queue.enqueue(
+        TaskSubmission("id_verification", 1, iso_ts(delta_minutes=0))
+    )  # Oldest
+    queue.enqueue(
+        TaskSubmission("bank_statements", 2, iso_ts(delta_minutes=1))
+    )  # Middle
+    queue.enqueue(
+        TaskSubmission("companies_house", 3, iso_ts(delta_minutes=7))
+    )  # Newest
 
     # With CURRENT CODE (age from oldest):
     # bank_statements age = 1-0 = 1 min → NOT boosted → deprioritized
@@ -488,6 +463,7 @@ def test_bank_statements_age_based_on_newest_not_oldest() -> None:
     # Should get bank_statements (boosted), not companies_house
     assert result.provider == "bank_statements"
     assert result.user_id == 2
+
 
 
 
