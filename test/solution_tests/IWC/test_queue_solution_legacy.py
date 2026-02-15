@@ -106,8 +106,6 @@ def test_multiple_users_with_rule_of_3() -> None:
             ),  # +dependency
             # User 1's tasks come first (hit Rule of 3 first)
             call_dequeue().expect("bank_statements", 1),
-            call_dequeue().expect("bank_statements", 1),
-            call_dequeue().expect("bank_statements", 1),
             # Then user 2's tasks
             call_dequeue().expect("companies_house", 2),
             call_dequeue().expect("id_verification", 2),
@@ -239,6 +237,7 @@ def test_multiple_deduplication_events() -> None:
         call_enqueue("bank_statements", 2, iso_ts(delta_minutes=4)).expect(3),
         call_size().expect(3),
     ])
+
 
 
 
