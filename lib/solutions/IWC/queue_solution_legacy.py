@@ -124,6 +124,10 @@ class Queue:
 
         return self.size
 
+    @staticmethod
+    def _provider_priority(task: TaskSubmission) -> int:
+        return 1 if task.provider == "bank_statements" else 0
+
     def dequeue(self):
         if self.size == 0:
             return None
@@ -165,6 +169,7 @@ class Queue:
             key=lambda i: (
                 self._priority_for_task(i),
                 self._earliest_group_timestamp_for_task(i),
+                self._provider_priority(i),  # NEW: bank_statements = 1, others = 0
                 self._timestamp_for_task(i),
             )
         )
@@ -271,3 +276,4 @@ async def queue_worker():
         logger.info(f"Finished task: {task}")
 ```
 """
+
