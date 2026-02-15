@@ -134,5 +134,3 @@ def test_dependency_counts_toward_rule_of_3() -> None:
             call_dequeue().expect("bank_statements", 2),
         ]
     )
-
-
