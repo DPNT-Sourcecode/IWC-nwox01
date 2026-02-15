@@ -134,3 +134,35 @@ def test_dependency_counts_toward_rule_of_3() -> None:
             call_dequeue().expect("bank_statements", 2),
         ]
     )
+
+
+def test_deduplication() -> None:
+    # GIVEN: A task is enqueued with a specific timestamp
+    # WHEN: The same (user_id, provider) pair is enqueued again with a newer timestamp
+    # THEN: Queue size remains the same, and the older timestamp is kept
+    run_queue(
+        [
+            call_enqueue("bank_statements", 1, iso_ts(delta_minutes=0)).expect(1),
+            call_enqueue("bank_statements", 1, iso_ts(delta_minutes=5)).expect(1),
+            call_enqueue("id_verification", 1, iso_ts(delta_minutes=5)).expect(2),
+            call_dequeue().expect("bank_statements", 1),
+            call_dequeue().expect("id_verification", 1),
+        ]
+    )
+
+
+def test_deduplication_keeps_older_timestamp() -> None:
+    # GIVEN: A task is enqueued with a newer timestamp first
+    # WHEN: The same task is enqueued with an older timestamp
+    # THEN: The older timestamp replaces the newer one
+    run_queue(
+        [
+            call_enqueue("bank_statements", 1, iso_ts(delta_minutes=10)).expect(1),
+            call_enqueue("bank_statements", 1, iso_ts(delta_minutes=5)).expect(1),
+            call_enqueue("id_verification", 1, iso_ts(delta_minutes=15)).expect(2),
+            # bank_statements should be processed first (delta=5)
+            call_dequeue().expect("bank_statements", 1),
+            call_dequeue().expect("id_verification", 1),
+        ]
+    )
+
