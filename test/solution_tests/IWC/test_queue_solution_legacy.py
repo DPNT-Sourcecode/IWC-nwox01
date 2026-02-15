@@ -166,3 +166,33 @@ def test_deduplication_keeps_older_timestamp() -> None:
         ]
     )
 
+def test_deduplication_different_users_not_deduplicated() -> None:
+    """Different users with same provider are not deduplicated"""
+    # GIVEN: Multiple users enqueue the same provider
+    # WHEN: Tasks are added to the queue
+    # THEN: Each user's task is kept separate
+    run_queue(
+        [
+            call_enqueue("bank_statements", 1, iso_ts(delta_minutes=0)).expect(1),
+            call_enqueue("bank_statements", 2, iso_ts(delta_minutes=0)).expect(2),
+            call_enqueue("bank_statements", 3, iso_ts(delta_minutes=0)).expect(3),
+            call_size().expect(3),
+        ]
+    )
+
+
+def test_deduplication_same_user_different_providers_not_deduplicated() -> None:
+    """Same user with different providers are not deduplicated"""
+    # GIVEN: A user enqueues multiple different providers
+    # WHEN: Tasks are added to the queue
+    # THEN: Each provider task is kept separate
+    run_queue(
+        [
+            call_enqueue("bank_statements", 1, iso_ts(delta_minutes=0)).expect(1),
+            call_enqueue("companies_house", 1, iso_ts(delta_minutes=0)).expect(2),
+            call_enqueue("id_verification", 1, iso_ts(delta_minutes=0)).expect(3),
+            call_size().expect(3),
+        ]
+    )
+
+
