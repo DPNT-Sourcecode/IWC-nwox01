@@ -440,6 +440,3 @@ def test_bank_statements_not_old_enough_stays_deprioritized() -> None:
             call_dequeue().expect("bank_statements", 2),  # Still last
         ]
     )
-
-
-
