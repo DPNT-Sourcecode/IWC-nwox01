@@ -141,6 +141,19 @@ class Queue:
 
         return 0 if age_seconds >= 300 else 1
 
+    def _provider_tiebreaker(
+        self, task: TaskSubmission, newest_timestamp: datetime
+    ) -> int:
+        """Tiebreaker when timestamps are equal - boosted bank_statements wins"""
+        if task.provider != "bank_statements":
+            return 1
+
+        # If bank_statements is boosted, it wins ties (returns 0)
+        task_timestamp = self._timestamp_for_task(task)
+        age_seconds = (newest_timestamp - task_timestamp).total_seconds()
+
+        return 0 if age_seconds >= 300 else 1
+
     def dequeue(self):
         if self.size == 0:
             return None
@@ -187,6 +200,7 @@ class Queue:
                 self._earliest_group_timestamp_for_task(i),
                 self._provider_priority(i, newest_timestamp),
                 self._timestamp_for_task(i),
+                self._provider_tiebreaker(i, newest_timestamp),
             )
         )
 
@@ -301,6 +315,7 @@ async def queue_worker():
         logger.info(f"Finished task: {task}")
 ```
 """
+
 
 
 

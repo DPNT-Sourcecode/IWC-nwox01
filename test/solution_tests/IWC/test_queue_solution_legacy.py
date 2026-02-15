@@ -465,6 +465,24 @@ def test_bank_statements_age_based_on_newest_not_oldest() -> None:
     assert result.user_id == 2
 
 
+def test_bank_statements_wins_tie_when_boosted() -> None:
+    # GIVEN: bank_statements and other provider with same timestamp, same user
+    # WHEN: Both boosted (>= 5 min age)
+    # THEN: bank_statements comes first
+    run_queue([
+        call_enqueue("companies_house", 1, iso_ts(delta_minutes=0)).expect(1),
+        call_enqueue("bank_statements", 1, iso_ts(delta_minutes=0)).expect(2),
+        call_enqueue("id_verification", 6, iso_ts(delta_minutes=6)).expect(3),
+        # companies_house age = 6-0 = 6 min → provider_priority = 0
+        # bank_statements age = 6-0 = 6 min → provider_priority = 0 (boosted)
+        # Same timestamp (0), need tiebreaker
+        call_dequeue().expect("bank_statements", 1),  # Should win tie
+        call_dequeue().expect("companies_house", 1),
+        call_dequeue().expect("id_verification", 6),
+    ])
+
+
+
 
 
 
