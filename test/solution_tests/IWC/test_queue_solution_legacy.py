@@ -31,7 +31,7 @@ def test_timestamp_ordering() -> None:
     # THEN: The task with the older timestamp is processed first
     run_queue(
         [
-            call_enqueue("bank_statements", 1, iso_ts(delta_minutes=5)).expect(1),
+            call_enqueue("bank_statements", 1, iso_ts(delta_minutes=3)).expect(1),
             call_enqueue("bank_statements", 2, iso_ts(delta_minutes=0)).expect(2),
             # Older timestamp (delta=0) should be dequeued first
             call_dequeue().expect("bank_statements", 2),
@@ -393,17 +393,19 @@ def test_age_after_purge() -> None:
 
 
 def test_bank_statements_old_enough_gets_priority() -> None:
-    # GIVEN: Bank statements 5+ minutes newer than oldest task
-    # WHEN: Dequeued
-    # THEN: Gets priority boost
+    # GIVEN: Bank statements with 5+ min age gets boosted
+    # WHEN: Dequeued alongside tasks with later timestamps
+    # THEN: Bank statements comes before those later tasks
     run_queue([
         call_enqueue("id_verification", 1, iso_ts(delta_minutes=0)).expect(1),  # Oldest
-        call_enqueue("bank_statements", 2, iso_ts(delta_minutes=6)).expect(2),  # Age = 6-0 = 6 min
-        call_enqueue("companies_house", 3, iso_ts(delta_minutes=7)).expect(3),
-        # bank_statements age = 6 min >= 5 min (boosted)
-        call_dequeue().expect("id_verification", 1),  # Oldest timestamp wins
-        call_dequeue().expect("bank_statements", 2),  # Boosted, comes before companies_house
-        call_dequeue().expect("companies_house", 3),
+        call_enqueue("companies_house", 4, iso_ts(delta_minutes=1)).expect(2),  # Also old
+        call_enqueue("bank_statements", 2, iso_ts(delta_minutes=6)).expect(3),  # Age=6min, boosted
+        call_enqueue("id_verification", 3, iso_ts(delta_minutes=7)).expect(4),  # Newest
+        # oldest=0 throughout, bank_statements age=6min (boosted)
+        call_dequeue().expect("id_verification", 1),  # Oldest timestamp
+        call_dequeue().expect("companies_house", 4),  # Second oldest
+        call_dequeue().expect("bank_statements", 2),  # Boosted, comes before id_verification
+        call_dequeue().expect("id_verification", 3),  # Latest
     ])
 
 
@@ -420,4 +422,5 @@ def test_bank_statements_not_old_enough_stays_deprioritized() -> None:
         call_dequeue().expect("companies_house", 3),
         call_dequeue().expect("bank_statements", 2),  # Still last
     ])
+
 
