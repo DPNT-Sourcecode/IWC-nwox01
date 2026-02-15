@@ -482,10 +482,3 @@ def test_bank_statements_wins_tie_when_boosted() -> None:
             call_dequeue().expect("id_verification", 6),
         ]
     )
-
-
-
-
-
-
-
