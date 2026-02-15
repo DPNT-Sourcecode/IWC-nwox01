@@ -107,6 +107,14 @@ class Queue:
         tasks = [*self._collect_dependencies(item), item]
 
         for task in tasks:
+            task_ts = self._timestamp_for_task(task)
+            if self._global_oldest_timestamp is None:
+                self._global_oldest_timestamp = task_ts
+            else:
+                self._global_oldest_timestamp = min(
+                    self._global_oldest_timestamp, task_ts
+                )
+
             existing = next(
                 (
                     t
@@ -146,7 +154,7 @@ class Queue:
         if self.size == 0:
             return None
 
-        oldest_timestamp = min(self._timestamp_for_task(t) for t in self._queue)
+        global_oldest = self._global_oldest_timestamp
 
         user_ids = {task.user_id for task in self._queue}
         task_count = {}
@@ -185,12 +193,16 @@ class Queue:
             key=lambda i: (
                 self._priority_for_task(i),
                 self._earliest_group_timestamp_for_task(i),
-                self._provider_priority(i, oldest_timestamp),
+                self._provider_priority(i, global_oldest),
                 self._timestamp_for_task(i),
             )
         )
 
         task = self._queue.pop(0)
+
+        if self.size == 0:
+            self._global_oldest_timestamp = None
+
         return TaskDispatch(
             provider=task.provider,
             user_id=task.user_id,
@@ -214,6 +226,7 @@ class Queue:
 
     def purge(self):
         self._queue.clear()
+        self._global_oldest_timestamp = None
         return True
 
 
@@ -300,6 +313,7 @@ async def queue_worker():
         logger.info(f"Finished task: {task}")
 ```
 """
+
 
 
 
