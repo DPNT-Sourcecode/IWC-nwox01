@@ -30,5 +30,3 @@ class TestSum:
         assert self.solution.compute(23, 77) == 100
         assert self.solution.compute(1, 99) == 100
         assert self.solution.compute(33, 67) == 100
-
-

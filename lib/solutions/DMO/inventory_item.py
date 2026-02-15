@@ -6,4 +6,3 @@ class InventoryItem:
     sku: str
     name: str
     price: int
-

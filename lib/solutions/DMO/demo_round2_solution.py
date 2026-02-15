@@ -7,4 +7,3 @@ class DemoRound2Solution:
 
     def filter_pass(self, list_of_integers, threshold):
         raise NotImplementedError()
-

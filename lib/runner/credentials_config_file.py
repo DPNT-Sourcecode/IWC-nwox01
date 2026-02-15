@@ -45,4 +45,3 @@ def load_properties(filepath, sep="=", comment_char="#"):
             "ERROR: You need to download the credentials.config file before you can run this."
         )
         exit(1)
-

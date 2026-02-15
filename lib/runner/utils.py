@@ -32,4 +32,3 @@ class Utils:
             .set_response_queue_name(read_from_config_file("tdl_response_queue_name"))
             .set_hostname(read_from_config_file("tdl_hostname"))
         )
-
