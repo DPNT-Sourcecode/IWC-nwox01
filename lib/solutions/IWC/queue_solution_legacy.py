@@ -124,7 +124,9 @@ class Queue:
 
         return self.size
 
-    def _provider_priority(self, task: TaskSubmission, newest_timestamp: datetime) -> int:
+    def _provider_priority(
+        self, task: TaskSubmission, newest_timestamp: datetime
+    ) -> int:
         """Bank statements priority based on age.
 
         - If age >= 5 minutes from newest: return 0 (normal priority, boosted)
@@ -297,6 +299,3 @@ async def queue_worker():
         logger.info(f"Finished task: {task}")
 ```
 """
-
-
-
