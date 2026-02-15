@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .utils import call_dequeue, call_enqueue, iso_ts, run_queue
+from .utils import call_dequeue, call_enqueue, call_size, iso_ts, run_queue
 
 
 def test_rule_of_3() -> None:
@@ -49,3 +49,66 @@ def test_dependency_resolution() -> None:
             call_dequeue().expect("credit_check", 1),
         ]
     )
+
+
+def test_size_method() -> None:
+    # GIVEN: An empty queue
+    # WHEN: Tasks are enqueued and dequeued
+    # THEN: size() accurately reflects the current number of pending tasks
+    run_queue(
+        [
+            call_size().expect(0),
+            call_enqueue("bank_statements", 1, iso_ts(delta_minutes=0)).expect(1),
+            call_size().expect(1),
+            call_dequeue().expect("bank_statements", 1),
+            call_size().expect(0),
+        ]
+    )
+
+def test_rule_of_3_overrides_timestamp() -> None:
+    # GIVEN: User 2 enqueues first with an early timestamp
+    # WHEN: User 1 enqueues 3 tasks with later timestamps
+    # THEN: User 1's tasks are processed before user 2's despite older timestamps
+    run_queue(
+        [
+            # User 2 has earliest timestamp
+            call_enqueue("bank_statements", 2, iso_ts(delta_minutes=0)).expect(1),
+            # User 1 enqueues 3 tasks with later timestamps
+            call_enqueue("companies_house", 1, iso_ts(delta_minutes=10)).expect(2),
+            call_enqueue("id_verification", 1, iso_ts(delta_minutes=20)).expect(3),
+            call_enqueue("bank_statements", 1, iso_ts(delta_minutes=30)).expect(4),
+            # User 1's tasks should come first despite later timestamps
+            call_dequeue().expect("companies_house", 1),
+            call_dequeue().expect("id_verification", 1),
+            call_dequeue().expect("bank_statements", 1),
+            # User 2's task comes last despite earliest timestamp
+            call_dequeue().expect("bank_statements", 2),
+        ]
+    )
+
+
+def test_multiple_users_with_rule_of_3() -> None:
+    # GIVEN: Multiple users are enqueuing tasks
+    # WHEN: Two different users both reach 3 tasks
+    # THEN: Both users' tasks should be prioritized by timestamp of when they hit 3
+    run_queue(
+        [
+            call_enqueue("bank_statements", 1, iso_ts(delta_minutes=0)).expect(1),
+            call_enqueue("bank_statements", 1, iso_ts(delta_minutes=1)).expect(2),
+            call_enqueue("bank_statements", 1, iso_ts(delta_minutes=2)).expect(3),
+            # User 1 now has Rule of 3 active
+            call_enqueue("companies_house", 2, iso_ts(delta_minutes=3)).expect(4),
+            call_enqueue("id_verification", 2, iso_ts(delta_minutes=4)).expect(5),
+            call_enqueue("credit_check", 2, iso_ts(delta_minutes=5)).expect(7),  # +dependency
+            # User 1's tasks come first (hit Rule of 3 first)
+            call_dequeue().expect("bank_statements", 1),
+            call_dequeue().expect("bank_statements", 1),
+            call_dequeue().expect("bank_statements", 1),
+            # Then user 2's tasks
+            call_dequeue().expect("companies_house", 2),
+            call_dequeue().expect("id_verification", 2),
+            call_dequeue().expect("companies_house", 2),  # dependency
+            call_dequeue().expect("credit_check", 2),
+        ]
+    )
+
