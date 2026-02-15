@@ -129,7 +129,7 @@ class Queue:
     ) -> int:
         """Bank statements priority based on age.
 
-        - If age >= 5 minutes from newest: return 0 (normal priority, boosted)
+        - If age >= 5 minutes from oldest: return 0 (normal priority, boosted)
         - If age < 5 minutes: return 1 (deprioritised)
         - other providers: return 0 (normal priority)
         """
@@ -299,5 +299,6 @@ async def queue_worker():
         logger.info(f"Finished task: {task}")
 ```
 """
+
 
 
