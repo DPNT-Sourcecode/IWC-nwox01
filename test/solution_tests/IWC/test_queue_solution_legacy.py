@@ -227,8 +227,3 @@ def test_multiple_deduplication_events() -> None:
             call_size().expect(3),
         ]
     )
-
-
-
-
-
