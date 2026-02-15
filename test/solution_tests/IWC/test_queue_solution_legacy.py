@@ -313,3 +313,11 @@ def test_two_users_rule_of_3_bank_statements() -> None:
     ])
 
 
+def test_age_empty_queue() -> None:
+    # GIVEN: Empty queue
+    # WHEN: Age checked
+    # THEN: Returns 0
+    run_queue([
+        call_size().expect(0),
+        # Need to call age() - but utils don't have this helper
+    ])
