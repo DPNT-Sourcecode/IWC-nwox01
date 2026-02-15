@@ -403,3 +403,34 @@ def test_age_after_purge() -> None:
     assert queue.age() == 0
 
 
+def test_bank_statements_old_enough_gets_priority() -> None:
+    # GIVEN: Bank statements task older than 5 minutes from newest
+    # WHEN: Dequeued
+    # THEN: Bank statements can skip ahead of newer tasks
+    run_queue([
+        call_enqueue("id_verification", 1, iso_ts(delta_minutes=0)).expect(1),
+        call_enqueue("bank_statements", 2, iso_ts(delta_minutes=1)).expect(2),
+        call_enqueue("companies_house", 3, iso_ts(delta_minutes=7)).expect(3),
+        # bank_statements age = 7-1 = 6 min >= 5 min, gets priority
+        call_dequeue().expect("id_verification", 1),  # Oldest timestamp
+        call_dequeue().expect("bank_statements", 2),  # Gets boosted
+        call_dequeue().expect("companies_house", 3),
+    ])
+
+
+def test_bank_statements_not_old_enough_stays_deprioritized() -> None:
+    # GIVEN: Bank statements task less than 5 minutes from newest
+    # WHEN: Dequeued
+    # THEN: Bank statements stays deprioritized
+    run_queue([
+        call_enqueue("id_verification", 1, iso_ts(delta_minutes=0)).expect(1),
+        call_enqueue("bank_statements", 2, iso_ts(delta_minutes=1)).expect(2),
+        call_enqueue("companies_house", 3, iso_ts(delta_minutes=4)).expect(3),
+        # bank_statements age = 4-1 = 3 min < 5 min, stays deprioritized
+        call_dequeue().expect("id_verification", 1),
+        call_dequeue().expect("companies_house", 3),
+        call_dequeue().expect("bank_statements", 2),  # Still last
+    ])
+
+
+
