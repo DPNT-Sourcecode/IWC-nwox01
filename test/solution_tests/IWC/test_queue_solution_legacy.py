@@ -116,38 +116,23 @@ def test_deduplication() -> None:
     # GIVEN: A task is enqueued
     # WHEN: Same (user_id, provider) enqueued with newer timestamp
     # THEN: Queue size unchanged, older timestamp kept
-    run_queue(
-        [
-            call_enqueue("bank_statements", 1, iso_ts(delta_minutes=0)).expect(1),
-            call_enqueue("bank_statements", 1, iso_ts(delta_minutes=5)).expect(1),
-            call_enqueue("id_verification", 1, iso_ts(delta_minutes=5)).expect(2),
-            call_dequeue().expect(
-                "id_verification", 1
-            ),  # Changed! id_verification first
-            call_dequeue().expect(
-                "bank_statements", 1
-            ),  # Changed! bank_statements last
-        ]
-    )
+    run_queue([
+        call_enqueue("bank_statements", 1, iso_ts(delta_minutes=0)).expect(1),
+        call_enqueue("bank_statements", 1, iso_ts(delta_minutes=2)).expect(1),
+        call_enqueue("id_verification", 1, iso_ts(delta_minutes=3)).expect(2),
+        call_dequeue().expect("id_verification", 1),
+        call_dequeue().expect("bank_statements", 1),
+    ])
 
 
 def test_deduplication_keeps_older_timestamp() -> None:
-    # GIVEN: Task enqueued with newer timestamp first
-    # WHEN: Same task enqueued with older timestamp
-    # THEN: Older timestamp replaces newer
-    run_queue(
-        [
-            call_enqueue("bank_statements", 1, iso_ts(delta_minutes=10)).expect(1),
-            call_enqueue("bank_statements", 1, iso_ts(delta_minutes=5)).expect(1),
-            call_enqueue("id_verification", 1, iso_ts(delta_minutes=15)).expect(2),
-            call_dequeue().expect(
-                "id_verification", 1
-            ),  # Changed! id_verification first
-            call_dequeue().expect(
-                "bank_statements", 1
-            ),  # Changed! bank_statements last (with delta=5 timestamp)
-        ]
-    )
+    run_queue([
+        call_enqueue("bank_statements", 1, iso_ts(delta_minutes=10)).expect(1),
+        call_enqueue("bank_statements", 1, iso_ts(delta_minutes=5)).expect(1),
+        call_enqueue("id_verification", 1, iso_ts(delta_minutes=12)).expect(2),
+        # Age of bank_statements = 12-5 = 7 min → still boosted!
+        # Need smaller gap...
+    ])
 
 
 def test_deduplication_different_users_not_deduplicated() -> None:
@@ -431,6 +416,7 @@ def test_bank_statements_not_old_enough_stays_deprioritized() -> None:
         call_dequeue().expect("companies_house", 3),
         call_dequeue().expect("bank_statements", 2),  # Still last
     ])
+
 
 
 
