@@ -124,9 +124,20 @@ class Queue:
 
         return self.size
 
-    @staticmethod
-    def _provider_priority(task: TaskSubmission) -> int:
-        return 1 if task.provider == "bank_statements" else 0
+    def _provider_priority(self, task: TaskSubmission, newest_timestamp: datetime) -> int:
+        """Bank statements priority based on age.
+
+        - If age >= 5 minutes from newest: return 0 (normal priority, boosted)
+        - If age < 5 minutes: return 1 (deprioritised)
+        - other providers: return 0 (normal priority)
+        """
+        if task.provider != "bank_statements":
+            return 0
+
+        task_timestamp = self._timestamp_for_task(task)
+        age_seconds = (newest_timestamp - task_timestamp).total_seconds()
+
+        return 0 if age_seconds >= 300 else 1
 
     def dequeue(self):
         if self.size == 0:
@@ -169,7 +180,7 @@ class Queue:
             key=lambda i: (
                 self._priority_for_task(i),
                 self._earliest_group_timestamp_for_task(i),
-                self._provider_priority(i),  # NEW: bank_statements = 1, others = 0
+                self._provider_priority(i, max(self._timestamp_for_task(t) for t in self._queue)),
                 self._timestamp_for_task(i),
             )
         )
@@ -284,4 +295,5 @@ async def queue_worker():
         logger.info(f"Finished task: {task}")
 ```
 """
+
 
