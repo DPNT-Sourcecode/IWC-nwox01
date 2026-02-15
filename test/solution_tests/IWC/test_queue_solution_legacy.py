@@ -227,3 +227,97 @@ def test_multiple_deduplication_events() -> None:
             call_size().expect(3),
         ]
     )
+
+
+def test_bank_statements_deprioritized_basic() -> None:
+    # GIVEN: Bank statements enqueued first
+    # WHEN: Other tasks enqueued after
+    # THEN: Bank statements processed last
+    run_queue([
+        call_enqueue("bank_statements", 1, iso_ts(delta_minutes=0)).expect(1),
+        call_enqueue("id_verification", 1, iso_ts(delta_minutes=1)).expect(2),
+        call_enqueue("companies_house", 2, iso_ts(delta_minutes=2)).expect(3),
+        call_dequeue().expect("id_verification", 1),
+        call_dequeue().expect("companies_house", 2),
+        call_dequeue().expect("bank_statements", 1),
+    ])
+
+
+def test_bank_statements_deprioritized_with_rule_of_3() -> None:
+    # GIVEN: User has 3+ tasks including bank statements
+    # WHEN: Rule of 3 applies
+    # THEN: User's bank statements come after their other tasks
+    run_queue([
+        call_enqueue("bank_statements", 1, iso_ts(delta_minutes=0)).expect(1),
+        call_enqueue("companies_house", 1, iso_ts(delta_minutes=1)).expect(2),
+        call_enqueue("id_verification", 1, iso_ts(delta_minutes=2)).expect(3),
+        call_enqueue("companies_house", 2, iso_ts(delta_minutes=3)).expect(4),
+        # User 1 has Rule of 3: all their tasks come first, but bank_statements last
+        call_dequeue().expect("companies_house", 1),
+        call_dequeue().expect("id_verification", 1),
+        call_dequeue().expect("bank_statements", 1),
+        call_dequeue().expect("companies_house", 2),
+    ])
+
+
+def test_multiple_bank_statements_ordered_by_timestamp() -> None:
+    # GIVEN: Multiple bank statements from different users
+    # WHEN: All deprioritized
+    # THEN: Timestamp ordering applies among bank statements
+    run_queue([
+        call_enqueue("bank_statements", 1, iso_ts(delta_minutes=5)).expect(1),
+        call_enqueue("bank_statements", 2, iso_ts(delta_minutes=0)).expect(2),
+        call_enqueue("companies_house", 3, iso_ts(delta_minutes=10)).expect(3),
+        call_dequeue().expect("companies_house", 3),
+        call_dequeue().expect("bank_statements", 2),  # Older timestamp first
+        call_dequeue().expect("bank_statements", 1),
+    ])
+
+
+def test_bank_statements_with_dependencies() -> None:
+    # GIVEN: Task with bank statements dependency
+    # WHEN: Enqueued
+    # THEN: Bank statements still deprioritized
+    run_queue([
+        call_enqueue("companies_house", 1, iso_ts(delta_minutes=0)).expect(1),
+        call_enqueue("bank_statements", 1, iso_ts(delta_minutes=1)).expect(2),
+        call_enqueue("id_verification", 2, iso_ts(delta_minutes=2)).expect(3),
+        call_dequeue().expect("companies_house", 1),
+        call_dequeue().expect("id_verification", 2),
+        call_dequeue().expect("bank_statements", 1),
+    ])
+
+
+def test_bank_statements_only_user_still_deprioritized() -> None:
+    # GIVEN: User only has bank statements
+    # WHEN: Mixed with other users' tasks
+    # THEN: Bank statements still go last
+    run_queue([
+        call_enqueue("bank_statements", 1, iso_ts(delta_minutes=0)).expect(1),
+        call_enqueue("companies_house", 2, iso_ts(delta_minutes=10)).expect(2),
+        call_dequeue().expect("companies_house", 2),  # Goes first despite later timestamp
+        call_dequeue().expect("bank_statements", 1),
+    ])
+
+
+def test_two_users_rule_of_3_bank_statements() -> None:
+    # GIVEN: Two users both with Rule of 3 and bank statements
+    # WHEN: Both prioritized
+    # THEN: Each user's bank statements come last within their tasks
+    run_queue([
+        call_enqueue("bank_statements", 1, iso_ts(delta_minutes=0)).expect(1),
+        call_enqueue("companies_house", 1, iso_ts(delta_minutes=1)).expect(2),
+        call_enqueue("id_verification", 1, iso_ts(delta_minutes=2)).expect(3),
+        call_enqueue("bank_statements", 2, iso_ts(delta_minutes=3)).expect(4),
+        call_enqueue("companies_house", 2, iso_ts(delta_minutes=4)).expect(5),
+        call_enqueue("id_verification", 2, iso_ts(delta_minutes=5)).expect(6),
+        # User 1 first (earlier Rule of 3), bank_statements last
+        call_dequeue().expect("companies_house", 1),
+        call_dequeue().expect("id_verification", 1),
+        call_dequeue().expect("bank_statements", 1),
+        # Then user 2, bank_statements last
+        call_dequeue().expect("companies_house", 2),
+        call_dequeue().expect("id_verification", 2),
+        call_dequeue().expect("bank_statements", 2),
+    ])
+
