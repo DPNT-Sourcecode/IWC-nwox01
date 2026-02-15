@@ -1,5 +1,7 @@
 import sys
-from tdl.queue.queue_based_implementation_runner import QueueBasedImplementationRunnerBuilder
+from tdl.queue.queue_based_implementation_runner import (
+    QueueBasedImplementationRunnerBuilder,
+)
 from tdl.runner.challenge_session import ChallengeSession
 
 from entry_point_mapping import EntryPointMapping
@@ -52,36 +54,37 @@ from runner.user_input_action import get_user_input
 
 entry_point_mapping = EntryPointMapping()
 
-runner = QueueBasedImplementationRunnerBuilder()\
-    .set_config(Utils.get_runner_config())\
-    .with_solution_for('amazing_maze', entry_point_mapping.amazing_maze) \
-    .with_solution_for('array_sum', entry_point_mapping.array_sum)\
-    .with_solution_for('checkout', entry_point_mapping.checkout)\
-    .with_solution_for('count_lines', entry_point_mapping.count_lines)\
-    .with_solution_for('filter_pass', entry_point_mapping.filter_pass)\
-    .with_solution_for('fizz_buzz', entry_point_mapping.fizz_buzz)\
-    .with_solution_for('hello', entry_point_mapping.hello)\
-    .with_solution_for('increment', entry_point_mapping.increment)\
-    .with_solution_for('int_range', entry_point_mapping.int_range)\
-    .with_solution_for('inventory_add', entry_point_mapping.inventory_add)\
-    .with_solution_for('inventory_get', entry_point_mapping.inventory_get)\
-    .with_solution_for('inventory_size', entry_point_mapping.inventory_size)\
-    .with_solution_for('letter_to_santa', entry_point_mapping.letter_to_santa)\
-    .with_solution_for('rabbit_hole', entry_point_mapping.rabbit_hole) \
-    .with_solution_for('render_house', entry_point_mapping.render_house) \
-    .with_solution_for('sum', entry_point_mapping.sum)\
-    .with_solution_for('to_uppercase', entry_point_mapping.to_uppercase)\
-    .with_solution_for('ultimate_maze', entry_point_mapping.ultimate_maze) \
-    .with_solution_for('waves', entry_point_mapping.waves)\
-    .with_solution_for('enqueue', entry_point_mapping.enqueue) \
-    .with_solution_for('dequeue', entry_point_mapping.dequeue) \
-    .with_solution_for('size', entry_point_mapping.size) \
-    .with_solution_for('purge', entry_point_mapping.purge) \
-    .with_solution_for('age', entry_point_mapping.age) \
+runner = (
+    QueueBasedImplementationRunnerBuilder()
+    .set_config(Utils.get_runner_config())
+    .with_solution_for("amazing_maze", entry_point_mapping.amazing_maze)
+    .with_solution_for("array_sum", entry_point_mapping.array_sum)
+    .with_solution_for("checkout", entry_point_mapping.checkout)
+    .with_solution_for("count_lines", entry_point_mapping.count_lines)
+    .with_solution_for("filter_pass", entry_point_mapping.filter_pass)
+    .with_solution_for("fizz_buzz", entry_point_mapping.fizz_buzz)
+    .with_solution_for("hello", entry_point_mapping.hello)
+    .with_solution_for("increment", entry_point_mapping.increment)
+    .with_solution_for("int_range", entry_point_mapping.int_range)
+    .with_solution_for("inventory_add", entry_point_mapping.inventory_add)
+    .with_solution_for("inventory_get", entry_point_mapping.inventory_get)
+    .with_solution_for("inventory_size", entry_point_mapping.inventory_size)
+    .with_solution_for("letter_to_santa", entry_point_mapping.letter_to_santa)
+    .with_solution_for("rabbit_hole", entry_point_mapping.rabbit_hole)
+    .with_solution_for("render_house", entry_point_mapping.render_house)
+    .with_solution_for("sum", entry_point_mapping.sum)
+    .with_solution_for("to_uppercase", entry_point_mapping.to_uppercase)
+    .with_solution_for("ultimate_maze", entry_point_mapping.ultimate_maze)
+    .with_solution_for("waves", entry_point_mapping.waves)
+    .with_solution_for("enqueue", entry_point_mapping.enqueue)
+    .with_solution_for("dequeue", entry_point_mapping.dequeue)
+    .with_solution_for("size", entry_point_mapping.size)
+    .with_solution_for("purge", entry_point_mapping.purge)
+    .with_solution_for("age", entry_point_mapping.age)
     .create()
+)
 
-ChallengeSession\
-    .for_runner(runner)\
-    .with_config(Utils.get_config())\
-    .with_action_provider(lambda: get_user_input(sys.argv[1:]))\
-    .start()
+ChallengeSession.for_runner(runner).with_config(
+    Utils.get_config()
+).with_action_provider(lambda: get_user_input(sys.argv[1:])).start()
+

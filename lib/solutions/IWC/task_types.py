@@ -15,6 +15,7 @@ class TaskSubmission:
     timestamp: datetime | str
     metadata: dict[str, object] = field(default_factory=dict)
 
+
 @dataclass
 class TaskDispatch:
     """Typed payload returned by ``Queue.dequeue``."""
@@ -24,3 +25,4 @@ class TaskDispatch:
 
 
 __all__ = ["TaskSubmission", "TaskDispatch"]
+

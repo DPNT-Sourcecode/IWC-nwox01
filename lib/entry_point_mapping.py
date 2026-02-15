@@ -17,6 +17,7 @@ from dataclasses import is_dataclass, asdict
 
 from solutions.IWC.task_types import TaskSubmission
 
+
 class EntryPointMapping:
     def __init__(self):
         self.sum_solution = SumSolution()
@@ -34,7 +35,7 @@ class EntryPointMapping:
         self.queue_solution_entrypoint = QueueSolutionEntrypoint()
 
     # ~~~~~~~~ Single method challenges ~~~~~~
-    
+
     def sum(self, *args):
         return self.sum_solution.compute(*args)
 
@@ -82,7 +83,7 @@ class EntryPointMapping:
         return self.queue_solution_entrypoint.purge()
 
     # ~~~~~~~~ Demo rounds ~~~~~~
-    
+
     def increment(self, *args):
         return self.demo_round1_solution.increment(*args)
 
@@ -123,3 +124,4 @@ class EntryPointMapping:
     # Round 4 & 5
     def waves(self, *args):
         return self.demo_round4n5_solution.waves(*args)
+
