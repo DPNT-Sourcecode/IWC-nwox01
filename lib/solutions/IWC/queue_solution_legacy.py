@@ -202,6 +202,10 @@ class Queue:
 
         if self.size == 0:
             self._global_oldest_timestamp = None
+        else:
+            self._global_oldest_timestamp = min(
+                self._timestamp_for_task(t) for t in self._queue
+            )
 
         return TaskDispatch(
             provider=task.provider,
@@ -313,3 +317,4 @@ async def queue_worker():
         logger.info(f"Finished task: {task}")
 ```
 """
+
