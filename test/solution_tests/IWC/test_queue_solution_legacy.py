@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from lib.solutions.IWC.queue_solution_entrypoint import QueueSolutionEntrypoint
+from lib.solutions.IWC.task_types import TaskSubmission
+
 from .utils import call_dequeue, call_enqueue, call_size, iso_ts, run_queue
 
 
@@ -321,3 +324,45 @@ def test_age_empty_queue() -> None:
         call_size().expect(0),
         # Need to call age() - but utils don't have this helper
     ])
+
+
+def test_age_with_time_gap() -> None:
+    # GIVEN: Tasks with 5 minute gap
+    # WHEN: Age checked
+    # THEN: Returns 300 seconds
+    queue = QueueSolutionEntrypoint()
+    queue.enqueue(TaskSubmission("id_verification", 1, iso_ts(delta_minutes=0)))
+    queue.enqueue(TaskSubmission("id_verification", 2, iso_ts(delta_minutes=5)))
+    assert queue.age() == 300
+
+
+def test_age_updates_on_dequeue() -> None:
+    # GIVEN: Queue with tasks spanning 10 minutes
+    # WHEN: Oldest task dequeued
+    # THEN: Age decreases
+    queue = QueueSolutionEntrypoint()
+    queue.enqueue(TaskSubmission("id_verification", 1, iso_ts(delta_minutes=0)))
+    queue.enqueue(TaskSubmission("companies_house", 2, iso_ts(delta_minutes=5)))
+    queue.enqueue(TaskSubmission("bank_statements", 3, iso_ts(delta_minutes=10)))
+
+    assert queue.age() == 600  # 10 minutes
+
+    queue.dequeue()  # Remove oldest (or first by priority)
+
+    # Age should be smaller now (depends on what was dequeued)
+    assert queue.age() < 600
+
+
+def test_age_after_purge() -> None:
+    # GIVEN: Queue with tasks
+    # WHEN: Purged
+    # THEN: Age returns 0
+    queue = QueueSolutionEntrypoint()
+    queue.enqueue(TaskSubmission("id_verification", 1, iso_ts(delta_minutes=0)))
+    queue.enqueue(TaskSubmission("id_verification", 2, iso_ts(delta_minutes=5)))
+
+    assert queue.age() == 300
+
+    queue.purge()
+    assert queue.age() == 0
+
