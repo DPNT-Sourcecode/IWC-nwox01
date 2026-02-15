@@ -4,7 +4,7 @@ from enum import IntEnum
 
 # LEGACY CODE ASSET
 # RESOLVED on deploy
-from solutions.IWC.task_types import TaskSubmission, TaskDispatch
+from solutions.IWC.task_types import TaskDispatch, TaskSubmission
 
 
 class Priority(IntEnum):
@@ -97,14 +97,28 @@ class Queue:
             return datetime.fromisoformat(timestamp).replace(tzinfo=None)
         return timestamp
 
+    def _add_task(self, task: TaskSubmission) -> None:
+        task.metadata["priority"] = Priority.NORMAL
+        task.metadata["group_earliest_timestamp"] = MAX_TIMESTAMP
+        self._queue.append(task)
+
     def enqueue(self, item: TaskSubmission) -> int:
         tasks = [*self._collect_dependencies(item), item]
 
         for task in tasks:
-            metadata = task.metadata
-            metadata.setdefault("priority", Priority.NORMAL)
-            metadata.setdefault("group_earliest_timestamp", MAX_TIMESTAMP)
-            self._queue.append(task)
+            existing = next(
+                (t for t in self._queue
+                if t.user_id == task.user_id and t.provider == task.provider),
+                None
+            )
+
+            if existing:
+                if self._timestamp_for_task(task) < self._timestamp_for_task(existing):
+                    self._queue.remove(existing)
+                    self._add_task(task)
+            else:
+                self._add_task(task)
+
         return self.size
 
     def dequeue(self):
@@ -254,3 +268,4 @@ async def queue_worker():
         logger.info(f"Finished task: {task}")
 ```
 """
+
