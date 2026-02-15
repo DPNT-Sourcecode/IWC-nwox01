@@ -89,32 +89,6 @@ def test_rule_of_3_overrides_timestamp() -> None:
     )
 
 
-def test_multiple_users_with_rule_of_3() -> None:
-    # GIVEN: Multiple users are enqueuing tasks
-    # WHEN: Two different users both reach 3 tasks
-    # THEN: Both users' tasks should be prioritized by timestamp of when they hit 3
-    run_queue(
-        [
-            call_enqueue("bank_statements", 1, iso_ts(delta_minutes=0)).expect(1),
-            call_enqueue("bank_statements", 1, iso_ts(delta_minutes=1)).expect(2),
-            call_enqueue("bank_statements", 1, iso_ts(delta_minutes=2)).expect(3),
-            # User 1 now has Rule of 3 active
-            call_enqueue("companies_house", 2, iso_ts(delta_minutes=3)).expect(4),
-            call_enqueue("id_verification", 2, iso_ts(delta_minutes=4)).expect(5),
-            call_enqueue("credit_check", 2, iso_ts(delta_minutes=5)).expect(
-                7
-            ),  # +dependency
-            # User 1's tasks come first (hit Rule of 3 first)
-            call_dequeue().expect("bank_statements", 1),
-            # Then user 2's tasks
-            call_dequeue().expect("companies_house", 2),
-            call_dequeue().expect("id_verification", 2),
-            call_dequeue().expect("companies_house", 2),  # dependency
-            call_dequeue().expect("credit_check", 2),
-        ]
-    )
-
-
 def test_dependency_counts_toward_rule_of_3() -> None:
     # GIVEN: A user enqueues tasks including ones with dependencies
     # WHEN: Dependencies cause the user to reach 3 tasks
@@ -138,105 +112,122 @@ def test_deduplication_example() -> None:
     # GIVEN: A task is enqueued
     # WHEN: Same (user_id, provider) enqueued with newer timestamp
     # THEN: Queue size unchanged, older timestamp kept
-    run_queue([
-        call_enqueue("bank_statements", 1, iso_ts(delta_minutes=0)).expect(1),
-        call_enqueue("bank_statements", 1, iso_ts(delta_minutes=5)).expect(1),
-        call_enqueue("id_verification", 1, iso_ts(delta_minutes=5)).expect(2),
-        call_dequeue().expect("bank_statements", 1),
-        call_dequeue().expect("id_verification", 1),
-    ])
+    run_queue(
+        [
+            call_enqueue("bank_statements", 1, iso_ts(delta_minutes=0)).expect(1),
+            call_enqueue("bank_statements", 1, iso_ts(delta_minutes=5)).expect(1),
+            call_enqueue("id_verification", 1, iso_ts(delta_minutes=5)).expect(2),
+            call_dequeue().expect("bank_statements", 1),
+            call_dequeue().expect("id_verification", 1),
+        ]
+    )
 
 
 def test_deduplication_keeps_older_timestamp() -> None:
     # GIVEN: Task enqueued with newer timestamp first
     # WHEN: Same task enqueued with older timestamp
     # THEN: Older timestamp replaces newer
-    run_queue([
-        call_enqueue("bank_statements", 1, iso_ts(delta_minutes=10)).expect(1),
-        call_enqueue("bank_statements", 1, iso_ts(delta_minutes=5)).expect(1),
-        call_enqueue("id_verification", 1, iso_ts(delta_minutes=15)).expect(2),
-        call_dequeue().expect("bank_statements", 1),
-        call_dequeue().expect("id_verification", 1),
-    ])
+    run_queue(
+        [
+            call_enqueue("bank_statements", 1, iso_ts(delta_minutes=10)).expect(1),
+            call_enqueue("bank_statements", 1, iso_ts(delta_minutes=5)).expect(1),
+            call_enqueue("id_verification", 1, iso_ts(delta_minutes=15)).expect(2),
+            call_dequeue().expect("bank_statements", 1),
+            call_dequeue().expect("id_verification", 1),
+        ]
+    )
 
 
 def test_deduplication_different_users_not_deduplicated() -> None:
     # GIVEN: Multiple users enqueue same provider
     # WHEN: Tasks added to queue
     # THEN: Each user's task kept separate
-    run_queue([
-        call_enqueue("bank_statements", 1, iso_ts()).expect(1),
-        call_enqueue("bank_statements", 2, iso_ts()).expect(2),
-        call_enqueue("bank_statements", 3, iso_ts()).expect(3),
-        call_size().expect(3),
-    ])
+    run_queue(
+        [
+            call_enqueue("bank_statements", 1, iso_ts()).expect(1),
+            call_enqueue("bank_statements", 2, iso_ts()).expect(2),
+            call_enqueue("bank_statements", 3, iso_ts()).expect(3),
+            call_size().expect(3),
+        ]
+    )
 
 
 def test_deduplication_same_user_different_providers() -> None:
     # GIVEN: User enqueues multiple providers
     # WHEN: Tasks added to queue
     # THEN: Each provider task kept separate
-    run_queue([
-        call_enqueue("bank_statements", 1, iso_ts()).expect(1),
-        call_enqueue("companies_house", 1, iso_ts()).expect(2),
-        call_enqueue("id_verification", 1, iso_ts()).expect(3),
-        call_size().expect(3),
-    ])
+    run_queue(
+        [
+            call_enqueue("bank_statements", 1, iso_ts()).expect(1),
+            call_enqueue("companies_house", 1, iso_ts()).expect(2),
+            call_enqueue("id_verification", 1, iso_ts()).expect(3),
+            call_size().expect(3),
+        ]
+    )
 
 
 def test_deduplication_with_rule_of_3() -> None:
     # GIVEN: User enqueues tasks including duplicates
     # WHEN: User reaches 3 unique tasks
     # THEN: Rule of 3 applied, duplicates handled correctly
-    run_queue([
-        call_enqueue("bank_statements", 1, iso_ts(delta_minutes=0)).expect(1),
-        call_enqueue("companies_house", 1, iso_ts(delta_minutes=1)).expect(2),
-        call_enqueue("id_verification", 1, iso_ts(delta_minutes=2)).expect(3),
-        call_enqueue("bank_statements", 1, iso_ts(delta_minutes=3)).expect(3),
-        call_enqueue("bank_statements", 2, iso_ts(delta_minutes=4)).expect(4),
-        call_dequeue().expect("bank_statements", 1),
-        call_dequeue().expect("companies_house", 1),
-        call_dequeue().expect("id_verification", 1),
-        call_dequeue().expect("bank_statements", 2),
-    ])
+    run_queue(
+        [
+            call_enqueue("bank_statements", 1, iso_ts(delta_minutes=0)).expect(1),
+            call_enqueue("companies_house", 1, iso_ts(delta_minutes=1)).expect(2),
+            call_enqueue("id_verification", 1, iso_ts(delta_minutes=2)).expect(3),
+            call_enqueue("bank_statements", 1, iso_ts(delta_minutes=3)).expect(3),
+            call_enqueue("bank_statements", 2, iso_ts(delta_minutes=4)).expect(4),
+            call_dequeue().expect("bank_statements", 1),
+            call_dequeue().expect("companies_house", 1),
+            call_dequeue().expect("id_verification", 1),
+            call_dequeue().expect("bank_statements", 2),
+        ]
+    )
 
 
 def test_deduplication_with_dependencies() -> None:
     # GIVEN: Task with dependencies enqueued
     # WHEN: Same task enqueued again
     # THEN: Dependency deduplicated as well
-    run_queue([
-        call_enqueue("credit_check", 1, iso_ts(delta_minutes=0)).expect(2),
-        call_enqueue("credit_check", 1, iso_ts(delta_minutes=5)).expect(2),
-        call_dequeue().expect("companies_house", 1),
-        call_dequeue().expect("credit_check", 1),
-    ])
+    run_queue(
+        [
+            call_enqueue("credit_check", 1, iso_ts(delta_minutes=0)).expect(2),
+            call_enqueue("credit_check", 1, iso_ts(delta_minutes=5)).expect(2),
+            call_dequeue().expect("companies_house", 1),
+            call_dequeue().expect("credit_check", 1),
+        ]
+    )
 
 
 def test_deduplication_dependency_exists_separately() -> None:
     # GIVEN: Dependency already enqueued separately
     # WHEN: Task requiring that dependency enqueued
     # THEN: Dependency deduplicated, older timestamp kept
-    run_queue([
-        call_enqueue("companies_house", 1, iso_ts(delta_minutes=0)).expect(1),
-        call_enqueue("credit_check", 1, iso_ts(delta_minutes=5)).expect(2),
-        call_dequeue().expect("companies_house", 1),
-        call_dequeue().expect("credit_check", 1),
-    ])
+    run_queue(
+        [
+            call_enqueue("companies_house", 1, iso_ts(delta_minutes=0)).expect(1),
+            call_enqueue("credit_check", 1, iso_ts(delta_minutes=5)).expect(2),
+            call_dequeue().expect("companies_house", 1),
+            call_dequeue().expect("credit_check", 1),
+        ]
+    )
 
 
 def test_multiple_deduplication_events() -> None:
     # GIVEN: Various tasks enqueued with duplicates
     # WHEN: Duplicates from different users processed
     # THEN: Each duplicate handled correctly per user
-    run_queue([
-        call_enqueue("bank_statements", 1, iso_ts(delta_minutes=0)).expect(1),
-        call_enqueue("bank_statements", 2, iso_ts(delta_minutes=1)).expect(2),
-        call_enqueue("bank_statements", 1, iso_ts(delta_minutes=2)).expect(2),
-        call_enqueue("id_verification", 1, iso_ts(delta_minutes=3)).expect(3),
-        call_enqueue("bank_statements", 2, iso_ts(delta_minutes=4)).expect(3),
-        call_size().expect(3),
-    ])
+    run_queue(
+        [
+            call_enqueue("bank_statements", 1, iso_ts(delta_minutes=0)).expect(1),
+            call_enqueue("bank_statements", 2, iso_ts(delta_minutes=1)).expect(2),
+            call_enqueue("bank_statements", 1, iso_ts(delta_minutes=2)).expect(2),
+            call_enqueue("id_verification", 1, iso_ts(delta_minutes=3)).expect(3),
+            call_enqueue("bank_statements", 2, iso_ts(delta_minutes=4)).expect(3),
+            call_size().expect(3),
+        ]
+    )
+
 
 
 

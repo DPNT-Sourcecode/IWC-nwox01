@@ -107,9 +107,12 @@ class Queue:
 
         for task in tasks:
             existing = next(
-                (t for t in self._queue
-                if t.user_id == task.user_id and t.provider == task.provider),
-                None
+                (
+                    t
+                    for t in self._queue
+                    if t.user_id == task.user_id and t.provider == task.provider
+                ),
+                None,
             )
 
             if existing:
@@ -268,4 +271,5 @@ async def queue_worker():
         logger.info(f"Finished task: {task}")
 ```
 """
+
 
