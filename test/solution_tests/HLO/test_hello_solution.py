@@ -9,5 +9,3 @@ class TestHello:
         assert solution.hello("Mr. X") == "Hello, Mr. X!"
         assert solution.hello("Alice") == "Hello, Alice!"
         assert solution.hello("World") == "Hello, World!"
-
-
