@@ -133,6 +133,36 @@ class Queue:
 
         return self.size
 
+    # def enqueue(self, item: TaskSubmission) -> int:
+    #     tasks = [*self._collect_dependencies(item), item]
+
+    #     for task in tasks:
+    #         existing = next(
+    #             (t for t in self._queue
+    #             if t.user_id == task.user_id and t.provider == task.provider),
+    #             None,
+    #         )
+
+    #         task_added = False
+    #         if existing:
+    #             if self._timestamp_for_task(task) < self._timestamp_for_task(existing):
+    #                 self._queue.remove(existing)
+    #                 self._add_task(task)
+    #                 task_added = True
+    #         else:
+    #             self._add_task(task)
+    #             task_added = True
+
+    #         # Only update global oldest if task was actually added
+    #         if task_added:
+    #             task_ts = self._timestamp_for_task(task)
+    #             if self._global_oldest_timestamp is None:
+    #                 self._global_oldest_timestamp = task_ts
+    #             else:
+    #                 self._global_oldest_timestamp = min(self._global_oldest_timestamp, task_ts)
+
+    #     return self.size
+
     def _provider_priority(
         self, task: TaskSubmission, oldest_timestamp: datetime
     ) -> int:
@@ -317,4 +347,5 @@ async def queue_worker():
         logger.info(f"Finished task: {task}")
 ```
 """
+
 
