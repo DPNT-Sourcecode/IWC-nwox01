@@ -145,7 +145,7 @@ class Queue:
         if self.size == 0:
             return None
 
-        newest_timestamp = max(self._timestamp_for_task(t) for t in self._queue)
+        oldest_timestamp = min(self._timestamp_for_task(t) for t in self._queue)
 
         user_ids = {task.user_id for task in self._queue}
         task_count = {}
@@ -184,7 +184,7 @@ class Queue:
             key=lambda i: (
                 self._priority_for_task(i),
                 self._earliest_group_timestamp_for_task(i),
-                self._provider_priority(i, newest_timestamp),
+                self._provider_priority(i, oldest_timestamp),
                 self._timestamp_for_task(i),
             )
         )
@@ -299,3 +299,4 @@ async def queue_worker():
         logger.info(f"Finished task: {task}")
 ```
 """
+
