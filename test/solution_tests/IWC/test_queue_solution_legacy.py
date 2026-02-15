@@ -464,46 +464,31 @@ def test_global_oldest_recalculates_after_dequeue() -> None:
     assert result1.provider == "companies_house"
     assert result2.provider == "bank_statements"
 
-def test_global_oldest_not_updated_on_duplicate_rejection() -> None:
-    # GIVEN: Task enqueued, then duplicate with OLDER timestamp enqueued but rejected
-    # WHEN: Global oldest is checked
-    # THEN: Global oldest should NOT include the rejected duplicate's timestamp
+
+def test_bank_statements_age_based_on_newest_not_oldest() -> None:
+    # GIVEN: bank_statements between oldest and newest tasks
+    # WHEN: Age calculated from newest timestamp (not oldest)
+    # THEN: bank_statements gets boosted based on gap to newest
     queue = QueueSolutionEntrypoint()
 
-    # Enqueue bank_statements at delta=10
-    queue.enqueue(TaskSubmission("bank_statements", 1, iso_ts(delta_minutes=10)))
-    # global_oldest should be 10
+    # Enqueue tasks
+    queue.enqueue(TaskSubmission("id_verification", 1, iso_ts(delta_minutes=0)))  # Oldest
+    queue.enqueue(TaskSubmission("bank_statements", 2, iso_ts(delta_minutes=1)))  # Middle
+    queue.enqueue(TaskSubmission("companies_house", 3, iso_ts(delta_minutes=7)))  # Newest
 
-    # Enqueue companies_house at delta=15
-    queue.enqueue(TaskSubmission("companies_house", 2, iso_ts(delta_minutes=15)))
-    # global_oldest should still be 10
+    # With CURRENT CODE (age from oldest):
+    # bank_statements age = 1-0 = 1 min → NOT boosted → deprioritized
 
-    # Try to enqueue duplicate bank_statements with OLDER timestamp (delta=5)
-    # This gets REJECTED because existing one (delta=10) is OLDER
-    queue.enqueue(TaskSubmission("bank_statements", 1, iso_ts(delta_minutes=5)))
+    # With CORRECT CODE (age from newest):
+    # bank_statements age = 7-1 = 6 min → BOOSTED → comes before companies_house
 
-    # BUG: global_oldest gets updated to 5 even though task was rejected!
-    # CORRECT: global_oldest should still be 10
-
-    # Now enqueue bank_statements at delta=20
-    queue.enqueue(TaskSubmission("bank_statements", 3, iso_ts(delta_minutes=20)))
-
-    # With BUG: bank_statements user 3 age = 20-5 = 15 min → boosted!
-    # WITHOUT BUG: bank_statements user 3 age = 20-10 = 10 min → boosted!
-    # Both are >= 5 so this doesn't catch it...
-
-    # Better test: Check if bank_statements at delta=14 is boosted
-    queue.enqueue(TaskSubmission("bank_statements", 4, iso_ts(delta_minutes=14)))
-
-    # With BUG: age = 14-5 = 9 min → boosted (comes before companies_house)
-    # WITHOUT BUG: age = 14-10 = 4 min → NOT boosted (comes after companies_house)
-
-    queue.dequeue()  # bank_statements user 1 (delta=10, oldest actual)
+    queue.dequeue()  # id_verification (oldest timestamp)
     result = queue.dequeue()
 
-    # Without bug: companies_house should come next (bank_statements user 4 not boosted)
-    assert result.provider == "companies_house"
+    # Should get bank_statements (boosted), not companies_house
+    assert result.provider == "bank_statements"
     assert result.user_id == 2
+
 
 
 
