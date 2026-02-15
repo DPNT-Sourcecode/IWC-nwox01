@@ -55,7 +55,6 @@ REGISTERED_PROVIDERS: list[Provider] = [
 class Queue:
     def __init__(self):
         self._queue = []
-        self._global_oldest_timestamp = None
 
     def _collect_dependencies(self, task: TaskSubmission) -> list[TaskSubmission]:
         provider = next(
@@ -107,14 +106,6 @@ class Queue:
         tasks = [*self._collect_dependencies(item), item]
 
         for task in tasks:
-            task_ts = self._timestamp_for_task(task)
-            if self._global_oldest_timestamp is None:
-                self._global_oldest_timestamp = task_ts
-            else:
-                self._global_oldest_timestamp = min(
-                    self._global_oldest_timestamp, task_ts
-                )
-
             existing = next(
                 (
                     t
@@ -133,42 +124,12 @@ class Queue:
 
         return self.size
 
-    # def enqueue(self, item: TaskSubmission) -> int:
-    #     tasks = [*self._collect_dependencies(item), item]
-
-    #     for task in tasks:
-    #         existing = next(
-    #             (t for t in self._queue
-    #             if t.user_id == task.user_id and t.provider == task.provider),
-    #             None,
-    #         )
-
-    #         task_added = False
-    #         if existing:
-    #             if self._timestamp_for_task(task) < self._timestamp_for_task(existing):
-    #                 self._queue.remove(existing)
-    #                 self._add_task(task)
-    #                 task_added = True
-    #         else:
-    #             self._add_task(task)
-    #             task_added = True
-
-    #         # Only update global oldest if task was actually added
-    #         if task_added:
-    #             task_ts = self._timestamp_for_task(task)
-    #             if self._global_oldest_timestamp is None:
-    #                 self._global_oldest_timestamp = task_ts
-    #             else:
-    #                 self._global_oldest_timestamp = min(self._global_oldest_timestamp, task_ts)
-
-    #     return self.size
-
     def _provider_priority(
-        self, task: TaskSubmission, oldest_timestamp: datetime
+        self, task: TaskSubmission, newest_timestamp: datetime
     ) -> int:
         """Bank statements priority based on age.
 
-        - If age >= 5 minutes from oldest: return 0 (normal priority, boosted)
+        - If age >= 5 minutes from newest: return 0 (normal priority, boosted)
         - If age < 5 minutes: return 1 (deprioritised)
         - other providers: return 0 (normal priority)
         """
@@ -176,7 +137,7 @@ class Queue:
             return 0
 
         task_timestamp = self._timestamp_for_task(task)
-        age_seconds = (task_timestamp - oldest_timestamp).total_seconds()
+        age_seconds = (newest_timestamp - task_timestamp).total_seconds()
 
         return 0 if age_seconds >= 300 else 1
 
@@ -184,7 +145,8 @@ class Queue:
         if self.size == 0:
             return None
 
-        global_oldest = self._global_oldest_timestamp
+        # Calculate newest timestamp in current queue
+        newest_timestamp = max(self._timestamp_for_task(t) for t in self._queue)
 
         user_ids = {task.user_id for task in self._queue}
         task_count = {}
@@ -223,19 +185,12 @@ class Queue:
             key=lambda i: (
                 self._priority_for_task(i),
                 self._earliest_group_timestamp_for_task(i),
-                self._provider_priority(i, global_oldest),
+                self._provider_priority(i, newest_timestamp),
                 self._timestamp_for_task(i),
             )
         )
 
         task = self._queue.pop(0)
-
-        if self.size == 0:
-            self._global_oldest_timestamp = None
-        else:
-            self._global_oldest_timestamp = min(
-                self._timestamp_for_task(t) for t in self._queue
-            )
 
         return TaskDispatch(
             provider=task.provider,
@@ -260,9 +215,7 @@ class Queue:
 
     def purge(self):
         self._queue.clear()
-        self._global_oldest_timestamp = None
         return True
-
 
 """
 ===================================================================================================
@@ -347,5 +300,6 @@ async def queue_worker():
         logger.info(f"Finished task: {task}")
 ```
 """
+
 
 
